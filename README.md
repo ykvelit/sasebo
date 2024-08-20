@@ -1,2 +1,2 @@
 # sasebo
-Benchmark between deserialize ExpandoObject, Dictionary and TypeBuilder
+Benchmark between deserialize ExpandoObject, Dictionary, Typed and DynamicTyped
