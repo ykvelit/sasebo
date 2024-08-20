@@ -1,0 +1,9 @@
+@Mock_HostAddress = http://localhost:5021
+
+POST {{Mock_HostAddress}}/data
+
+###
+
+GET {{Mock_HostAddress}}/schema
+
+###
