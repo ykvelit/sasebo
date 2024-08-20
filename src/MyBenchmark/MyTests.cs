@@ -89,44 +89,11 @@ public class MyTests
         var dynamicAssembly = new AssemblyName("DynamicAssembly");
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(dynamicAssembly, AssemblyBuilderAccess.Run);
         var moduleBuilder = assemblyBuilder.DefineDynamicModule(dynamicAssembly.Name ?? "DynamicAssemblyExample");
-        var typeBuilder = moduleBuilder.DefineType(schema.Name, TypeAttributes.Public);
 
+        var typeBuilder = moduleBuilder.DefineType(schema.Name, TypeAttributes.Public);
         foreach (var prop in schema.Properties)
         {
-            var type = prop.Type switch
-            {
-                PropertyType.String => typeof(string),
-                PropertyType.Number => typeof(double),
-                PropertyType.Bool => typeof(bool),
-                PropertyType.Date => typeof(DateTime),
-                PropertyType.Array => BuildType(moduleBuilder, schema.Name, prop),
-
-                _ => throw new NotImplementedException()
-            };
-
-            FieldBuilder fieldBuilder = typeBuilder.DefineField("_" + prop.Name, type, FieldAttributes.Private);
-
-            var propertyBuilder = typeBuilder.DefineProperty(prop.Name, PropertyAttributes.HasDefault, type, Type.EmptyTypes);
-
-            MethodAttributes getSetAttr = MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig;
-
-            MethodBuilder methodBuilderGetAccessor = typeBuilder.DefineMethod("get_" + prop.Name, getSetAttr, type, Type.EmptyTypes);
-
-            ILGenerator numberGetIL = methodBuilderGetAccessor.GetILGenerator();
-            numberGetIL.Emit(OpCodes.Ldarg_0);
-            numberGetIL.Emit(OpCodes.Ldfld, fieldBuilder);
-            numberGetIL.Emit(OpCodes.Ret);
-
-            MethodBuilder methodBuilderSetAccessor = typeBuilder.DefineMethod("set_" + prop.Name, getSetAttr, null, new Type[] { type });
-
-            ILGenerator numberSetIL = methodBuilderSetAccessor.GetILGenerator();
-            numberSetIL.Emit(OpCodes.Ldarg_0);
-            numberSetIL.Emit(OpCodes.Ldarg_1);
-            numberSetIL.Emit(OpCodes.Stfld, fieldBuilder);
-            numberSetIL.Emit(OpCodes.Ret);
-
-            propertyBuilder.SetGetMethod(methodBuilderGetAccessor);
-            propertyBuilder.SetSetMethod(methodBuilderSetAccessor);
+            BuildProperty(typeBuilder, moduleBuilder, prop, schema.Name);
         }
 
         return typeBuilder.CreateType();
@@ -138,46 +105,51 @@ public class MyTests
         var typeBuilder = moduleBuilder.DefineType(className, TypeAttributes.Public);
         foreach (var p in prop.Properties)
         {
-            var type = p.Type switch
-            {
-                PropertyType.String => typeof(string),
-                PropertyType.Number => typeof(double),
-                PropertyType.Bool => typeof(bool),
-                PropertyType.Date => typeof(DateTime),
-                PropertyType.Array => BuildType(moduleBuilder, className, p),
-
-                _ => throw new NotImplementedException()
-            };
-
-            FieldBuilder fieldBuilder = typeBuilder.DefineField("_" + p.Name, type, FieldAttributes.Private);
-
-            var propertyBuilder = typeBuilder.DefineProperty(p.Name, PropertyAttributes.HasDefault, type, Type.EmptyTypes);
-
-            MethodAttributes getSetAttr = MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig;
-
-            MethodBuilder methodBuilderGetAccessor = typeBuilder.DefineMethod("get_" + p.Name, getSetAttr, type, Type.EmptyTypes);
-
-            ILGenerator numberGetIL = methodBuilderGetAccessor.GetILGenerator();
-            numberGetIL.Emit(OpCodes.Ldarg_0);
-            numberGetIL.Emit(OpCodes.Ldfld, fieldBuilder);
-            numberGetIL.Emit(OpCodes.Ret);
-
-            MethodBuilder methodBuilderSetAccessor = typeBuilder.DefineMethod("set_" + p.Name, getSetAttr, null, new Type[] { type });
-
-            ILGenerator numberSetIL = methodBuilderSetAccessor.GetILGenerator();
-            numberSetIL.Emit(OpCodes.Ldarg_0);
-            numberSetIL.Emit(OpCodes.Ldarg_1);
-            numberSetIL.Emit(OpCodes.Stfld, fieldBuilder);
-            numberSetIL.Emit(OpCodes.Ret);
-
-            propertyBuilder.SetGetMethod(methodBuilderGetAccessor);
-            propertyBuilder.SetSetMethod(methodBuilderSetAccessor);
+            BuildProperty(typeBuilder, moduleBuilder, p, className);
         }
 
         var createdType = typeBuilder.CreateType();
         var enumerableType = typeof(IEnumerable<>).MakeGenericType(createdType);
 
         return enumerableType;
+    }
+
+    private static void BuildProperty(TypeBuilder typeBuilder, ModuleBuilder moduleBuilder, SchemaProperty prop, string className)
+    {
+        var type = prop.Type switch
+        {
+            PropertyType.String => typeof(string),
+            PropertyType.Number => typeof(double),
+            PropertyType.Bool => typeof(bool),
+            PropertyType.Date => typeof(DateTime),
+            PropertyType.Array => BuildType(moduleBuilder, className, prop),
+
+            _ => throw new NotImplementedException()
+        };
+
+        FieldBuilder fieldBuilder = typeBuilder.DefineField("_" + prop.Name, type, FieldAttributes.Private);
+
+        var propertyBuilder = typeBuilder.DefineProperty(prop.Name, PropertyAttributes.HasDefault, type, Type.EmptyTypes);
+
+        MethodAttributes getSetAttr = MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig;
+
+        MethodBuilder methodBuilderGetAccessor = typeBuilder.DefineMethod("get_" + prop.Name, getSetAttr, type, Type.EmptyTypes);
+
+        ILGenerator numberGetIL = methodBuilderGetAccessor.GetILGenerator();
+        numberGetIL.Emit(OpCodes.Ldarg_0);
+        numberGetIL.Emit(OpCodes.Ldfld, fieldBuilder);
+        numberGetIL.Emit(OpCodes.Ret);
+
+        MethodBuilder methodBuilderSetAccessor = typeBuilder.DefineMethod("set_" + prop.Name, getSetAttr, null, new Type[] { type });
+
+        ILGenerator numberSetIL = methodBuilderSetAccessor.GetILGenerator();
+        numberSetIL.Emit(OpCodes.Ldarg_0);
+        numberSetIL.Emit(OpCodes.Ldarg_1);
+        numberSetIL.Emit(OpCodes.Stfld, fieldBuilder);
+        numberSetIL.Emit(OpCodes.Ret);
+
+        propertyBuilder.SetGetMethod(methodBuilderGetAccessor);
+        propertyBuilder.SetSetMethod(methodBuilderSetAccessor);
     }
 
     private static async Task<Schema> GetSchema(HttpClient http)
